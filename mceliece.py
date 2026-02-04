@@ -1205,7 +1205,7 @@ class Ciphertext:
         self.variant = variant
         expected_length = CryptoBytes.get_ciphertext_bytes(variant)
         if len(data) != expected_length:
-            raise ValueError(f'Ciphertext length mismatch variant: {expected_length}, actual {len(data)}')
+            raise ValueError(f'Ciphertext length mismatch variant: expected {expected_length}, actual {len(data)}')
         self.data = data
 
     def as_bytes(self):
@@ -1389,3 +1389,4 @@ def encapsulate(variant, pk, rng=None):
 def decapsulate(variant, c, sk):
     kem = ClassicMcElieceKEM(variant)
     return kem.decapsulate(c, sk)
+
