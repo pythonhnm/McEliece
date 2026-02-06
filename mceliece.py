@@ -948,7 +948,7 @@ class ClassicMcEliece:
         check = w ^ self.SYS_T
         for i in range(self.SYS_T * 2):
             check |= s[i] ^ s_cmp[i]
-        check = check - 1 >> 15
+        check = (check - 1) >> 15
         return (check ^ 1) & 1
 
     def int32_sort(self, arr):
@@ -1389,4 +1389,5 @@ def encapsulate(variant, pk, rng=None):
 def decapsulate(variant, c, sk):
     kem = ClassicMcElieceKEM(variant)
     return kem.decapsulate(c, sk)
+
 
