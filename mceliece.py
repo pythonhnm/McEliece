@@ -316,18 +316,10 @@ class ClassicMcEliece:
     def same_mask(self, x, y):
         if not self.variant.endswith('f'):
             raise NotImplementedError("The `same_mask` function only works with variants that have the 'f'")
-        mask = (x ^ y) & 65535
-        mask = mask - 1
-        mask >>= 63
-        mask = 0 - mask
-        return mask
+        return -((x ^ y) == 0) & 0xFFFF
 
     def same_mask_u8(self, x, y):
-        mask = (x ^ y) & 4294967295
-        mask = mask - 1 & 4294967295
-        mask >>= 31
-        mask = 0 - mask
-        return mask & 255
+        return -((x ^ y) == 0) & 0xFF
 
     def mov_columns(self, mat, pi, pivots):
         if not self.variant.endswith('f'):
@@ -1389,5 +1381,3 @@ def encapsulate(variant, pk, rng=None):
 def decapsulate(variant, c, sk):
     kem = ClassicMcElieceKEM(variant)
     return kem.decapsulate(c, sk)
-
-
