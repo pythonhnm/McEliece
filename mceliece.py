@@ -335,7 +335,7 @@ class ClassicMcEliece:
                 for j in range(9):
                     tmp[j] = mat[row + i][block_idx + j]
                 for j in range(8):
-                    tmp[j] = tmp[j] >> tail | tmp[j + 1] << 8 - tail
+                    tmp[j] = ((tmp[j] >> tail) | tmp[j + 1] << (8 - tail)) & 0xFF
                 buf[i] = int.from_bytes(tmp[:8], byteorder='little')
         else:
             for i in range(32):
@@ -370,7 +370,7 @@ class ClassicMcEliece:
                 for k in range(9):
                     tmp[k] = mat[i][block_idx + k]
                 for k in range(8):
-                    tmp[k] = tmp[k] >> tail | tmp[k + 1] << 8 - tail
+                    tmp[k] = ((tmp[k] >> tail) | (tmp[k + 1] << (8 - tail))) & 0xFF
                 t = int.from_bytes(tmp[:8], byteorder='little')
                 for j in range(32):
                     d = t >> j ^ t >> ctz_list[j]
@@ -380,10 +380,10 @@ class ClassicMcEliece:
                 bytes_t = t.to_bytes(8, byteorder='little')
                 for k in range(8):
                     tmp[k] = bytes_t[k]
-                mat[i][block_idx + 8] = mat[i][block_idx + 8] >> tail << tail | tmp[7] >> 8 - tail
-                mat[i][block_idx] = tmp[0] << tail | mat[i][block_idx] << 8 - tail >> 8 - tail
+                mat[i][block_idx + 8] = ((mat[i][block_idx + 8] >> tail << tail) | (tmp[7] >> (8 - tail))) & 0xFF
+                mat[i][block_idx] = ((tmp[0] << tail) | (mat[i][block_idx] << (8 - tail) >> (8 - tail))) & 0xFF
                 for k in range(1, 8):
-                    mat[i][block_idx + k] = tmp[k] << tail | tmp[k - 1] >> 8 - tail
+                    mat[i][block_idx + k] = ((tmp[k] << tail) | (tmp[k - 1] >> (8 - tail))) & 0xFF
         else:
             for i in range(self.PK_NROWS):
                 t = int.from_bytes(mat[i][block_idx:block_idx + 8], byteorder='little')
@@ -476,7 +476,7 @@ class ClassicMcEliece:
             for i in range(self.PK_NROWS):
                 start = (self.PK_NROWS - 1) // 8
                 for (idx, j) in enumerate(range(start, self.N_BYTES - 1)):
-                    pk[i * self.INNER_PK_ACCESSES + idx] = mat[i][j] >> self.tail | mat[i][j + 1] << 8 - self.tail
+                    pk[i * self.INNER_PK_ACCESSES + idx] = ((mat[i][j] >> self.tail) | mat[i][j + 1] << (8 - self.tail)) & 0xFF
                 pk[(i + 1) * self.INNER_PK_ACCESSES - 1] = mat[i][self.N_BYTES - 1] >> self.tail
         else:
             start_col = self.PK_NROWS // 8
@@ -549,15 +549,21 @@ class ClassicMcEliece:
             s[i] = 0
         if self.variant in ['mceliece6960119', 'mceliece6960119f']:
             tail = self.PK_NROWS % 8
+            start_byte = self.N_BYTES - self.PK_ROW_BYTES
             for i in range(self.PK_NROWS):
                 for j in range(self.N_BYTES):
                     row[j] = 0
                 for j in range(self.PK_ROW_BYTES):
                     if j < len(pk_segment):
-                        row[self.N_BYTES - self.PK_ROW_BYTES + j] = pk_segment[j]
-                for j in range(self.N_BYTES - self.PK_ROW_BYTES, self.N_BYTES - 1):
-                    row[j] = row[j] << tail | row[j - 1] >> 8 - tail
-                row[i // 8] |= 1 << i % 8
+                        row[start_byte + j] = pk_segment[j]
+                stored = row[start_byte:start_byte + self.PK_ROW_BYTES].copy()
+                for j in range(start_byte, start_byte + self.PK_ROW_BYTES):
+                    row[j] = 0
+                for k in range(self.PK_ROW_BYTES - 1):
+                    row[start_byte + k] |= (stored[k] << tail) & 0xFF
+                    row[start_byte + k + 1] |= (stored[k] >> (8 - tail))
+                row[start_byte + self.PK_ROW_BYTES - 1] |= (stored[-1] << tail) & 0xFF
+                row[i // 8] |= 1 << (i % 8)
                 b = 0
                 for j in range(self.N_BYTES):
                     b ^= row[j] & e[j]
@@ -565,7 +571,7 @@ class ClassicMcEliece:
                 b ^= b >> 2
                 b ^= b >> 1
                 b &= 1
-                s[i // 8] |= b << i % 8
+                s[i // 8] |= b << (i % 8)
                 pk_segment = pk_segment[self.PK_ROW_BYTES:]
         else:
             for i in range(self.PK_NROWS):
